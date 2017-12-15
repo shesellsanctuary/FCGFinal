@@ -195,6 +195,8 @@ bool g_ShowInfoText = true;
 
 // [GUI] bool pra saber se camera é free ou lookat, lookat por default
 bool freeCamera = false;
+// [GUI] bool pra saber se camera mudou
+bool cameraChange = false;
 
 // Variáveis que definem um programa de GPU (shaders). Veja função LoadShadersFromFiles().
 GLuint vertex_shader_id;
@@ -366,6 +368,12 @@ int main(int argc, char* argv[])
             camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
         }
         else{
+            if(cameraChange){
+                camera_position_c = glm::vec4(0.0f,0.0f,-g_CameraDistance,1.0f);
+                g_CameraPhi = 0;
+                g_CameraTheta = 0;
+                cameraChange = false;
+            }
             camera_lookat_l = glm::vec4(x+camera_position_c.x,-y+camera_position_c.y,z+camera_position_c.z,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
             camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
             glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
@@ -1198,6 +1206,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
     {
         freeCamera =! freeCamera;
+        cameraChange = true;
     }
     //[GUI] pra podermos mexer a camera
     if (key == GLFW_KEY_W && action == GLFW_PRESS)
