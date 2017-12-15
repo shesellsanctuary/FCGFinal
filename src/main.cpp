@@ -187,6 +187,8 @@ float g_ForearmAngleX = 0.0f;
 float g_TorsoPositionX = 0.0f;
 float g_TorsoPositionY = 0.0f;
 
+glm::vec3 player_position_c  = glm::vec3(0.0f,0.0f,0.0f); // Ponto de origem do player
+
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
 
@@ -285,6 +287,7 @@ int main(int argc, char* argv[])
     // Carregamos duas imagens para serem utilizadas como textura
     LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
+    LoadTextureImage("../../data/cow.jpg"); // TextureImage2
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -298,6 +301,10 @@ int main(int argc, char* argv[])
     ObjModel planemodel("../../data/plane.obj");
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
+
+    ObjModel cowmodel("../../data/cow.obj");
+    ComputeNormals(&cowmodel);
+    BuildTrianglesAndAddToVirtualScene(&cowmodel);
 
     if ( argc > 1 )
     {
@@ -323,6 +330,7 @@ int main(int argc, char* argv[])
     glm::mat4 the_view;
 
     glm::vec4 camera_position_c  = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "c", centro da câmera
+
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -361,6 +369,15 @@ int main(int argc, char* argv[])
         //[GUI] glm::vec4 camera_position_c; definido lá em cima
         glm::vec4 camera_lookat_l;
         glm::vec4 camera_view_vector;
+
+        if(WPressed)
+             player_position_c.y  += 0.01f;
+        if(SPressed)
+             player_position_c.y  -= 0.01f;
+        if(APressed)
+             player_position_c.x  -= 0.01f;
+        if(DPressed)
+             player_position_c.x  += 0.01f;
 
         if(!freeCamera){
             camera_position_c  = glm::vec4(x,y,z,1.0f); // Ponto "c", centro da câmera
@@ -438,19 +455,22 @@ int main(int argc, char* argv[])
         #define SPHERE 0
         #define BUNNY  1
         #define PLANE  2
+        #define COW  3
 
         // Desenhamos o modelo da esfera
         model = Matrix_Translate(-1.0f,0.0f,0.0f)
               * Matrix_Rotate_Z(0.6f)
               * Matrix_Rotate_X(0.2f)
-              * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+              * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f)
+              * Matrix_Scale(0.3f,0.3f,0.6f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SPHERE);
         DrawVirtualObject("sphere");
 
         // Desenhamos o modelo do coelho
         model = Matrix_Translate(1.0f,0.0f,0.0f)
-              * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f);
+              * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f)
+              * Matrix_Scale(0.3f,0.3f,0.3f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, BUNNY);
         DrawVirtualObject("bunny");
@@ -460,6 +480,14 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");
+
+        // [GUI]Desenhamos a vaquinha
+        model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
+                * Matrix_Rotate_Z(0.6f);
+                //* Matrix_Scale(0.3f,0.3f,0.6f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, COW);
+        DrawVirtualObject("cow");
 
         // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
         // passamos por todos os sistemas de coordenadas armazenados nas
@@ -635,6 +663,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage0"), 0);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), 1);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), 3);
     glUseProgram(0);
 }
 
@@ -1212,10 +1241,12 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_W && action == GLFW_PRESS)
     {
         WPressed = true;
+
     }
     if (key == GLFW_KEY_W && action == GLFW_RELEASE)
     {
         WPressed = false;
+
     }
 
     if (key == GLFW_KEY_S && action == GLFW_PRESS)
