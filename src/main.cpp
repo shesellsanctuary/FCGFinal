@@ -1348,6 +1348,11 @@ void TextRendering_ShowProjection(GLFWwindow* window)
         TextRendering_PrintString(window, "Perspective", 1.0f-13*charwidth, -1.0f+2*lineheight/10, 1.0f);
     else
         TextRendering_PrintString(window, "Orthographic", 1.0f-13*charwidth, -1.0f+2*lineheight/10, 1.0f);
+    //[GUI] Negócio pra mostrar se ta usando free camera ou lookat
+    if ( freeCamera )
+        TextRendering_PrintString(window, "Free Camera", 1.0f-13*charwidth, -1.0f+15*lineheight/10, 1.0f);
+    else
+        TextRendering_PrintString(window, "Look at Camera", 1.0f-16*charwidth, -1.0f+15*lineheight/10, 1.0f);
 }
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
