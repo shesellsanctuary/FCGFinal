@@ -22,6 +22,7 @@ uniform mat4 projection;
 #define SPHERE 0
 #define BUNNY  1
 #define PLANE  2
+#define COW  3
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -68,6 +69,9 @@ void main()
     // Coordenadas de textura U e V
     float U = 0.0;
     float V = 0.0;
+
+    vec3 Kd0 = vec3(0.0,0.0,0.0);
+    vec3 Kd1 = vec3(0.0,0.0,0.0);
 
     if ( object_id == SPHERE )
     {
@@ -120,6 +124,21 @@ void main()
         U = (position_model.x - minx)/(maxx - minx);
         V = (position_model.y - miny)/(maxy - miny);
     }
+    else if ( object_id == COW )
+    {
+
+        float minx = bbox_min.x;
+        float maxx = bbox_max.x;
+
+        float miny = bbox_min.y;
+        float maxy = bbox_max.y;
+
+        float minz = bbox_min.z;
+        float maxz = bbox_max.z;
+
+        U = (position_model.x - minx)/(maxx - minx);
+        V = (position_model.y - miny)/(maxy - miny);
+    }
     else if ( object_id == PLANE )
     {
         // Coordenadas de textura do plano, obtidas do arquivo OBJ.
@@ -128,14 +147,20 @@ void main()
     }
 
     // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-    vec3 Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
-    vec3 Kd1 = texture(TextureImage1, vec2(U,V)).rgb;
-    vec3 Kd2 = texture(TextureImage2, vec2(U,V)).rgb;
+    if ( object_id == SPHERE )
+    {
+        Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
+        Kd1 = texture(TextureImage1, vec2(U,V)).rgb;
+    }
+    if ( object_id == COW )
+    {
+        Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
+    }
 
     // Equação de Iluminação
     float lambert = max(0,dot(n,l));
 
-    color = Kd0 * (lambert + 0.01) + Kd1 * (1 - pow( (lambert),0.1)) + Kd2;;
+    color = Kd0 * (lambert + 0.01) + Kd1 * (1 - pow( (lambert),0.1));
 
     // Cor final com correção gamma, considerando monitor sRGB.
     // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
