@@ -207,6 +207,8 @@ float g_TorsoPositionY = 0.0f;
 
 glm::vec3 player_position_c  = glm::vec3(0.0f,0.0f,0.0f); // Ponto de origem do player
 glm::vec3 player_position_c_back  = glm::vec3(0.0f,0.0f,0.0f);
+
+glm::vec3 kingvaca_position_c  = glm::vec3(6.0f,-2.0f,0.0f);
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
 
@@ -336,6 +338,10 @@ int main(int argc, char* argv[])
     ObjModel planemodel("../../data/plane.obj");
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
+
+    ObjModel kingvaca("../../data/kingvaca.obj");
+    ComputeNormals(&kingvaca);
+    BuildTrianglesAndAddToVirtualScene(&kingvaca);
 
     printf("now it is: ");
     for (int i = 0; i<objectsInScene.size(); i++)
@@ -485,6 +491,8 @@ int main(int argc, char* argv[])
 #define BUNNY  1
 #define PLANE  2
 #define COW  3
+#define KINGVACA 4
+
         float rotateTemp;
         // Desenhamos o modelo da esfera
         rotateTemp = g_AngleY + (float)glfwGetTime() * 0.1f;
@@ -525,6 +533,18 @@ int main(int argc, char* argv[])
         g_VirtualScene["plane"].currentRotation = glm::vec3(0.0f,0.0f,0.0f);
         g_VirtualScene["plane"].currentScale = glm::vec3(1.0f,1.0f,1.0f);
 
+        // Desenhamos o KingVaca
+        model = Matrix_Translate(6.0f,-2.0f,0.0f)
+                * Matrix_Scale(5.0f,5.0f,5.0f)
+                * Matrix_Rotate_Y(3.2f);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, KINGVACA);
+        DrawVirtualObject("kingvaca");
+
+        g_VirtualScene["kingvaca"].currentTranslation = glm::vec3(6.0f,-1.4f,0.0f);
+        g_VirtualScene["kingvaca"].currentScale = glm::vec3(5.0f,5.0f,5.0f);
+
+
         // [GUI]Desenhamos a vaquinha
         player_position_c_back = player_position_c;
         player_position_c +=g_VirtualScene["cow"].currentVelocity;
@@ -538,10 +558,11 @@ int main(int argc, char* argv[])
         }
 
         model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
-                * Matrix_Scale(0.3f,0.3f,0.6f);
+                * Matrix_Scale(0.3f,0.3f,0.6f)
+                * Matrix_Rotate_Y(g_VirtualScene["cow"].currentRotation.y);
 
         g_VirtualScene["cow"].currentTranslation = glm::vec3(player_position_c.x,player_position_c.y,player_position_c.z);
-        g_VirtualScene["cow"].currentRotation = glm::vec3(0.0f,0.0f,0.0f);
+        //g_VirtualScene["cow"].currentRotation = glm::vec3(0.0f,0.0f,0.0f);
         g_VirtualScene["cow"].currentScale = glm::vec3(0.3f,0.3f,0.6f);
 
 
@@ -663,6 +684,7 @@ void LoadTextureImage(const char* filename)
 
 std::vector<std::string>  checkCollisions(const char* object_name)
 {
+
     glm::vec3 boundingMin =
         (g_VirtualScene[object_name].bbox_min*g_VirtualScene[object_name].currentScale)+g_VirtualScene[object_name].currentTranslation;
     glm::vec3 boundingMax =
@@ -672,10 +694,16 @@ std::vector<std::string>  checkCollisions(const char* object_name)
 
     for (int i = 1; i<objectsInScene.size(); i++)
     {
+
         glm::vec3 boundingMinCompare =
             (g_VirtualScene[objectsInScene[i]].bbox_min*g_VirtualScene[objectsInScene[i]].currentScale)+g_VirtualScene[objectsInScene[i]].currentTranslation;
         glm::vec3 boundingMaxCompare =
             (g_VirtualScene[objectsInScene[i]].bbox_max*g_VirtualScene[objectsInScene[i]].currentScale)+g_VirtualScene[objectsInScene[i]].currentTranslation;
+
+         if(objectsInScene[i] == "kingvaca"){
+            boundingMinCompare.x += 0.5f;
+            boundingMaxCompare.y -= 2.0f;
+         }
 
         if( (boundingMin.x <= boundingMaxCompare.x)&&
             (boundingMax.x >= boundingMinCompare.x)&&
@@ -1371,6 +1399,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_A && action == GLFW_PRESS)
     {
         g_VirtualScene["cow"].currentVelocity.x = -0.01f;
+        g_VirtualScene["cow"].currentRotation.y = 3.2f;
         APressed = true;
     }
     if (key == GLFW_KEY_A && action == GLFW_RELEASE)
@@ -1382,12 +1411,19 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_D && action == GLFW_PRESS)
     {
         g_VirtualScene["cow"].currentVelocity.x = 0.01f;
+        g_VirtualScene["cow"].currentRotation.y = 0.0f;
         DPressed = true;
     }
     if (key == GLFW_KEY_D && action == GLFW_RELEASE)
     {
         g_VirtualScene["cow"].currentVelocity.x = 0.0f;
         DPressed = false;
+    }
+
+    if (key == GLFW_KEY_J && action == GLFW_PRESS)
+    {
+
+
     }
 
     // Se o usuário apertar a tecla espaço, resetamos os ângulos de Euler para zero.

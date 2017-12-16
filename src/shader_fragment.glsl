@@ -23,6 +23,7 @@ uniform mat4 projection;
 #define BUNNY  1
 #define PLANE  2
 #define COW  3
+#define KINGVACA 4
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -102,7 +103,7 @@ void main()
         V = (anglePhi + M_PI_2)/M_PI;
 
     }
-    else if ( object_id == BUNNY )
+    else if ( object_id == BUNNY || object_id == COW || object_id == KINGVACA  )
     {
         // PREENCHA AQUI as coordenadas de textura do coelho, computadas com
         // projeção planar XY em COORDENADAS DO MODELO. Utilize como referência
@@ -124,21 +125,7 @@ void main()
         U = (position_model.x - minx)/(maxx - minx);
         V = (position_model.y - miny)/(maxy - miny);
     }
-    else if ( object_id == COW )
-    {
 
-        float minx = bbox_min.x;
-        float maxx = bbox_max.x;
-
-        float miny = bbox_min.y;
-        float maxy = bbox_max.y;
-
-        float minz = bbox_min.z;
-        float maxz = bbox_max.z;
-
-        U = (position_model.x - minx)/(maxx - minx);
-        V = (position_model.y - miny)/(maxy - miny);
-    }
     else if ( object_id == PLANE )
     {
         // Coordenadas de textura do plano, obtidas do arquivo OBJ.
@@ -152,7 +139,7 @@ void main()
         Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
         Kd1 = texture(TextureImage1, vec2(U,V)).rgb;
     }
-    if ( object_id == COW )
+    if ( object_id == COW || object_id == KINGVACA )
     {
         Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
     }
