@@ -396,13 +396,13 @@ int main(int argc, char* argv[])
         glm::vec4 camera_lookat_l;
         glm::vec4 camera_view_vector;
 
-        if(WPressed)
+        if(WPressed&&player_position_c.y<2.0f)
             player_position_c.y  += 0.01f;
-        if(SPressed)
+        if(SPressed&&player_position_c.y>-0.9f)
             player_position_c.y  -= 0.01f;
-        if(APressed)
+        if(APressed&&player_position_c.x >-2.0f)
             player_position_c.x  -= 0.01f;
-        if(DPressed)
+        if(DPressed&&player_position_c.x<2.0f)
             player_position_c.x  += 0.01f;
 
         if(!freeCamera)
@@ -425,14 +425,14 @@ int main(int argc, char* argv[])
             glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
             glm::vec4 camera_right_vector = crossproduct(camera_view_vector, camera_up_vector);
 
-            if(WPressed)
-                camera_position_c  += 0.01f*camera_view_vector;
-            if(SPressed)
-                camera_position_c  -= 0.01f*camera_view_vector;
-            if(APressed)
-                camera_position_c  -= 0.01f*camera_right_vector;
-            if(DPressed)
-                camera_position_c  += 0.01f*camera_right_vector;
+            if(WPressed&&player_position_c.y<2.0f)
+            player_position_c.y  += 0.01f;
+            if(SPressed&&player_position_c.y>-0.9f)
+            player_position_c.y  -= 0.01f;
+            if(APressed&&player_position_c.x >-2.0f)
+            player_position_c.x  -= 0.01f;
+            if(DPressed&&player_position_c.x<2.0f)
+            player_position_c.x  += 0.01f;
         }
 
 
@@ -525,6 +525,9 @@ int main(int argc, char* argv[])
         g_VirtualScene["plane"].currentScale = glm::vec3(1.0f,1.0f,1.0f);
 
         // [GUI]Desenhamos a vaquinha
+
+        float playerPosX,playerPosY,playerPosZ;
+
         model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
                 * Matrix_Scale(0.3f,0.3f,0.6f);
 
