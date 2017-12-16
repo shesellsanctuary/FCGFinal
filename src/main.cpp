@@ -141,7 +141,13 @@ struct SceneObject
     glm::vec3    currentRotation;
     glm::vec3    currentScale;
 
+    //[GUI] vetor de velocidade para aceleração
+    glm::vec3    currentVelocity;
+
 };
+
+
+glm::vec3 gravity = glm::vec3(0.0f,-0.0001f,0.0f);
 
 // Abaixo definimos variáveis globais utilizadas em várias funções do código.
 
@@ -180,6 +186,8 @@ bool WPressed = false;
 bool SPressed = false;
 bool APressed = false;
 bool DPressed = false;
+
+bool jumping = false;
 
 // Variáveis que definem a câmera em coordenadas esféricas, controladas pelo
 // usuário através do mouse (veja função CursorPosCallback()). A posição
@@ -359,8 +367,14 @@ int main(int argc, char* argv[])
 
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
+    float timeNow = (float)glfwGetTime();
+    bool update = false;
     while (!glfwWindowShouldClose(window))
     {
+        if (timeNow !=(float)glfwGetTime()){
+            update = true;
+            timeNow = (float)glfwGetTime();
+        }
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -396,10 +410,6 @@ int main(int argc, char* argv[])
         glm::vec4 camera_lookat_l;
         glm::vec4 camera_view_vector;
 
-        if(WPressed&&player_position_c.y<2.0f)
-            player_position_c.y  += 0.01f;
-        if(SPressed&&player_position_c.y>-0.9f)
-            player_position_c.y  -= 0.01f;
         if(APressed&&player_position_c.x >-2.0f)
             player_position_c.x  -= 0.01f;
         if(DPressed&&player_position_c.x<2.0f)
@@ -425,10 +435,6 @@ int main(int argc, char* argv[])
             glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
             glm::vec4 camera_right_vector = crossproduct(camera_view_vector, camera_up_vector);
 
-            if(WPressed&&player_position_c.y<2.0f)
-            player_position_c.y  += 0.01f;
-            if(SPressed&&player_position_c.y>-0.9f)
-            player_position_c.y  -= 0.01f;
             if(APressed&&player_position_c.x >-2.0f)
             player_position_c.x  -= 0.01f;
             if(DPressed&&player_position_c.x<2.0f)
@@ -526,7 +532,15 @@ int main(int argc, char* argv[])
 
         // [GUI]Desenhamos a vaquinha
 
-        float playerPosX,playerPosY,playerPosZ;
+        player_position_c +=g_VirtualScene["cow"].currentVelocity;
+        if(update && player_position_c.y >= -0.9f){
+            g_VirtualScene["cow"].currentVelocity += gravity;
+        }
+        if(player_position_c.y <= -0.9f){
+            jumping = false;
+            g_VirtualScene["cow"].currentVelocity = glm::vec3(0.0f,0.0f,0.0f);
+        }
+
 
         model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
                 * Matrix_Scale(0.3f,0.3f,0.6f);
@@ -580,6 +594,9 @@ int main(int argc, char* argv[])
         // definidas anteriormente usando glfwSet*Callback() serão chamadas
         // pela biblioteca GLFW.
         glfwPollEvents();
+
+        if(update)
+            update = false;
     }
 
     // Finalizamos o uso dos recursos do sistema operacional
@@ -1337,7 +1354,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_W && action == GLFW_RELEASE)
     {
         WPressed = false;
-
     }
 
     if (key == GLFW_KEY_S && action == GLFW_PRESS)
@@ -1378,6 +1394,13 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         g_TorsoPositionX = 0.0f;
         g_TorsoPositionY = 0.0f;
     }
+
+    if (key == GLFW_KEY_U && action == GLFW_PRESS && !jumping)
+    {
+        jumping = true;
+        g_VirtualScene["cow"].currentVelocity.y = 0.015f;
+    }
+
 
     // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
     if (key == GLFW_KEY_P && action == GLFW_PRESS)
