@@ -2,7 +2,7 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="Laboratorio_5" />
+		<Option title="Cowphead" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
 		<Build>
@@ -53,11 +53,15 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-Wno-unused-function" />
+			<Add option="-DSFML_STATIC" />
 			<Add directory="include" />
+			<Add directory="SJLJ 32/include" />
 		</Compiler>
 		<Linker>
 			<Add option="lib\libglfw3.a -lgdi32 -lopengl32" />
+			<Add library="sfml-audio" />
 			<Add directory="lib" />
+			<Add directory="SJLJ 32/lib" />
 		</Linker>
 		<Unit filename="include/GLFW/glfw3.h" />
 		<Unit filename="include/GLFW/glfw3native.h" />

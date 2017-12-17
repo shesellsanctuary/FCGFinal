@@ -20,6 +20,8 @@
 #include <cstdlib>
 #include <iostream>
 
+#include <SFML/Audio.hpp>
+
 // Headers abaixo são específicos de C++
 #include <map>
 #include <stack>
@@ -116,6 +118,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 void TextRendering_ShowKnockOut(GLFWwindow* window);
 void TextRendering_ShowPlayerAndKingLife(GLFWwindow* window);
 void TextRendering_ShowYouDied(GLFWwindow* window);
+void TextRendering_ShowIntro(GLFWwindow* window);
 
 
 // Funções callback para comunicação com o sistema operacional e interação do
@@ -193,6 +196,11 @@ bool SPressed = false;
 bool APressed = false;
 bool DPressed = false;
 
+bool KP_8Pressed = false;
+bool KP_5Pressed = false;
+bool KP_4Pressed = false;
+bool KP_6Pressed = false;
+
 bool jumping = false;
 bool playerAttack = false;
 bool bunnyPickedUp = false;
@@ -200,10 +208,13 @@ bool bunnyPickedUp = false;
 int cooldownBunny = 100;
 int cooldownHit = 100;
 
+int timerIntro = 450;
+
 int playerLife = 3;
 int kingLife = 10;
 
 bool gameEnd = false;
+bool introChoose;
 
 // Variáveis que definem a câmera em coordenadas esféricas, controladas pelo
 // usuário através do mouse (veja função CursorPosCallback()). A posição
@@ -413,11 +424,43 @@ int main(int argc, char* argv[])
 
     int timerTimeout = 100;;
 
-    std::random_device rd; // random number do hardware
 
+    srand(time(NULL));
+    introChoose = rand()%2;
+
+    sf::Music music;
+    if (!music.openFromFile("../../data/Botanic Panic.ogg"))
+        return -1; // error
+    music.play();
+
+
+    bool introPlayed = false;
+    bool knockoutPlayed = false;
+    bool deathsoundPlayed = false;
+    bool attacksoundPlayed = false;
+
+    int introVoiceChoose = rand()%11+1;
+    printf("%d",introVoiceChoose);
+
+    //std::string filename = "../../data/intro"<< ss.str()<<".ogg"<<std::endl();
+    std::ostringstream oss;
+    oss <<"../../data/intro"<< introVoiceChoose<<".ogg";
+    std::string filename =  oss.str();
+
+
+
+    sf::SoundBuffer buffer;
+    if (!buffer.loadFromFile(filename))
+        return -1;
+
+    sf::Sound sound;
+    sound.setBuffer(buffer);
+    sound.play();
 
     while (!glfwWindowShouldClose(window))
     {
+        if(timerIntro >0)
+            timerIntro--;
 
         if(kingHurt){
             kingLife--;
@@ -496,6 +539,14 @@ int main(int argc, char* argv[])
             glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
             glm::vec4 camera_right_vector = crossproduct(camera_view_vector, camera_up_vector);
 
+            if(KP_8Pressed)
+             camera_position_c  += 0.01f*camera_view_vector;
+            if(KP_5Pressed)
+             camera_position_c  -= 0.01f*camera_view_vector;
+            if(KP_4Pressed)
+             camera_position_c  -= 0.01f*camera_right_vector;
+            if(KP_6Pressed)
+             camera_position_c  += 0.01f*camera_right_vector;
         }
 
 
@@ -585,6 +636,15 @@ int main(int argc, char* argv[])
         else{
 
             if(playerAttack && !gameEnd){
+
+                if(!attacksoundPlayed){
+                    if (!buffer.loadFromFile("../../data/shoot.ogg"))
+                        return -1;
+                    sound.setBuffer(buffer);
+                    sound.play();
+                    attacksoundPlayed = true;
+                }
+
                 if(bunny_position_c.x < 2.0f)
                     bunny_position_c.x += 0.02f;
                 else{
@@ -592,6 +652,7 @@ int main(int argc, char* argv[])
                     kingHurt = true;
                     cooldownBunny = 500;
                     bunnyPickedUp = false;
+                    attacksoundPlayed = false;
                 }
 
                 model = Matrix_Translate(bunny_position_c.x,bunny_position_c.y,bunny_position_c.z)
@@ -679,10 +740,7 @@ int main(int argc, char* argv[])
         float currentRotationKingAux = 0;
         if(!kingAttacking && (currentRotationKing < -0.01f || currentRotationKing > 0.01f) && kingLife > 0) {
 
-            std::mt19937 eng(rd()); // seed generator
-            std::uniform_int_distribution<> distr(0, 1000); //o range
-
-            int rando = distr(eng);
+            int rando = rand()%1000;
 
             //printf("\nrando %i",rando);
             if(rando < 20 && timerTimeout < 0){
@@ -723,16 +781,26 @@ int main(int argc, char* argv[])
         if(!kingAttacking)
             currentRotationKingAux = currentRotationKing;
         if(kingLife >0)
-        model = Matrix_Translate(kingvaca_position_c.x,-2.0f,0.0f)
+            model = Matrix_Translate(kingvaca_position_c.x,-2.0f,0.0f)
                 * Matrix_Scale(5.0f,5.0f,5.0f)
                 * Matrix_Rotate_Y(3.2f)
                 * Matrix_Rotate_X(currentRotationKingAux );
-        else
-        model = Matrix_Translate(kingvaca_position_c_back.x-2.0f,-2.0f,0.0f)
+        else{
+            if(!knockoutPlayed){
+                if (!buffer.loadFromFile("../../data/knockout.ogg"))
+                    return -1;
+                sound.setBuffer(buffer);
+                sound.play();
+                knockoutPlayed = true;
+            }
+
+            model = Matrix_Translate(kingvaca_position_c_back.x-2.0f,-2.0f,0.0f)
                 * Matrix_Scale(5.0f,5.0f,5.0f)
                 * Matrix_Rotate_Y(3.2f-currentRotationKing*0.2f)
                 * Matrix_Rotate_Z(currentRotationKing)
                 * Matrix_Rotate_X(3.2f -currentRotationKing*0.8f);
+
+        }
 
         glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
         glUniform1i(object_id_uniform, KINGVACA);
@@ -756,18 +824,25 @@ int main(int argc, char* argv[])
             g_VirtualScene["cow"].currentVelocity.y = 0.0f;
         }
 
-        if(playerLife <= 0)
+        if(playerLife <= 0){
+            if(!deathsoundPlayed){
+                if (!buffer.loadFromFile("../../data/playerdeath.ogg"))
+                    return -1;
+                sound.setBuffer(buffer);
+                sound.play();
+                deathsoundPlayed = true;
+            }
             player_position_c.y += 0.008f;
+        }
 
         model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
                 * Matrix_Scale(0.3f,0.3f,0.6f)
                 * Matrix_Rotate_Y(g_VirtualScene["cow"].currentRotation.y);
 
         if(gameEnd && playerLife > 0)
-             model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
+            model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
                 * Matrix_Scale(0.3f,0.3f,0.6f)
                 * Matrix_Rotate_Y(currentRotationKing);
-
 
         g_VirtualScene["cow"].currentTranslation = glm::vec3(player_position_c.x,player_position_c.y,player_position_c.z);
         g_VirtualScene["cow"].currentScale = glm::vec3(0.3f,0.3f,0.6f);
@@ -824,6 +899,9 @@ int main(int argc, char* argv[])
 
         TextRendering_ShowKnockOut(window);
         TextRendering_ShowYouDied(window);
+
+        TextRendering_ShowIntro(window);
+
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -1603,7 +1681,47 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         freeCamera =! freeCamera;
         cameraChange = true;
     }
-    //[GUI] pra podermos mexer a camera
+
+    if (key == GLFW_KEY_KP_8 && action == GLFW_PRESS)
+    {
+        KP_8Pressed = true;
+
+    }
+    if (key == GLFW_KEY_KP_8 && action == GLFW_RELEASE)
+    {
+        KP_8Pressed = false;
+    }
+
+    if (key == GLFW_KEY_KP_5 && action == GLFW_PRESS)
+    {
+        KP_5Pressed = true;
+
+    }
+    if (key == GLFW_KEY_KP_5 && action == GLFW_RELEASE)
+    {
+        KP_5Pressed = false;
+    }
+
+    if (key == GLFW_KEY_KP_4 && action == GLFW_PRESS)
+    {
+        KP_4Pressed = true;
+
+    }
+    if (key == GLFW_KEY_KP_4 && action == GLFW_RELEASE)
+    {
+        KP_4Pressed = false;
+    }
+
+    if (key == GLFW_KEY_KP_6 && action == GLFW_PRESS)
+    {
+        KP_6Pressed = true;
+
+    }
+    if (key == GLFW_KEY_KP_6 && action == GLFW_RELEASE)
+    {
+        KP_6Pressed = false;
+    }
+
     if (key == GLFW_KEY_W && action == GLFW_PRESS)
     {
         WPressed = true;
@@ -1691,7 +1809,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     }
 
     // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
-    if (key == GLFW_KEY_R && action == GLFW_PRESS)
+    if (key == GLFW_KEY_M && action == GLFW_PRESS)
     {
         LoadShadersFromFiles();
         fprintf(stdout,"Shaders recarregados!\n");
@@ -1757,6 +1875,21 @@ void TextRendering_ShowPlayerAndKingLife(GLFWwindow* window)
     snprintf(buffer, 80, "COWZIE = %d KING = %d \n", playerLife, kingLife);
 
     TextRendering_PrintString(window, buffer, -1.0f, +0.9f, 1.5f);
+}
+
+void TextRendering_ShowIntro(GLFWwindow* window)
+{
+    if ( timerIntro <= 0 )
+        return;
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    if(introChoose)
+        snprintf(buffer, 80, "READY?");
+    else
+        snprintf(buffer, 80, "WALLOP!!");
+
+    TextRendering_PrintString(window, buffer, -1.0f+pad, -1.0f+17*pad, 12.0f);
 }
 
 void TextRendering_ShowKnockOut(GLFWwindow* window)
