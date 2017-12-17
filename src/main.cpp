@@ -30,6 +30,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
+#include <random>
 
 // Headers das bibliotecas OpenGL
 #include <glad/glad.h>   // Criação de contexto OpenGL 3.3
@@ -112,6 +113,11 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window);
 void TextRendering_ShowProjection(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 
+void TextRendering_ShowKnockOut(GLFWwindow* window);
+void TextRendering_ShowPlayerAndKingLife(GLFWwindow* window);
+void TextRendering_ShowYouDied(GLFWwindow* window);
+
+
 // Funções callback para comunicação com o sistema operacional e interação do
 // usuário. Veja mais comentários nas definições das mesmas, abaixo.
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
@@ -188,6 +194,16 @@ bool APressed = false;
 bool DPressed = false;
 
 bool jumping = false;
+bool playerAttack = false;
+bool bunnyPickedUp = false;
+
+int cooldownBunny = 100;
+int cooldownHit = 100;
+
+int playerLife = 3;
+int kingLife = 10;
+
+bool gameEnd = false;
 
 // Variáveis que definem a câmera em coordenadas esféricas, controladas pelo
 // usuário através do mouse (veja função CursorPosCallback()). A posição
@@ -205,15 +221,19 @@ float g_ForearmAngleX = 0.0f;
 float g_TorsoPositionX = 0.0f;
 float g_TorsoPositionY = 0.0f;
 
-glm::vec3 player_position_c  = glm::vec3(0.0f,0.0f,0.0f); // Ponto de origem do player
+glm::vec3 player_position_c  = glm::vec3(-1.0f,-0.9f,0.0f); // Ponto de origem do player
 glm::vec3 player_position_c_back  = glm::vec3(0.0f,0.0f,0.0f);
 
 glm::vec3 kingvaca_position_c  = glm::vec3(6.0f,-2.0f,0.0f);
+glm::vec3 kingvaca_position_c_back  = glm::vec3(6.0f,-2.0f,0.0f);
+
+
+glm::vec3 bunny_position_c  = glm::vec3(0.0f,-0.6f,0.0f);
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
 
 // Variável que controla se o texto informativo será mostrado na tela.
-bool g_ShowInfoText = true;
+bool g_ShowInfoText = false;
 
 // [GUI] bool pra saber se camera é free ou lookat, lookat por default
 bool freeCamera = false;
@@ -236,6 +256,8 @@ GLint bbox_max_uniform;
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
+
+
 
 int main(int argc, char* argv[])
 {
@@ -313,6 +335,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
     LoadTextureImage("../../data/cow.jpg"); // TextureImage2
+    LoadTextureImage("../../data/background.jpg"); // TextureImage3
+    LoadTextureImage("../../data/wood.jpg"); // TextureImage4
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     objectsInScene.clear();
@@ -379,8 +403,40 @@ int main(int argc, char* argv[])
     bool update = false;
 
     std::vector<std::string> collisions;
+
+    bool kingAttack; //tipo do ataque
+    bool kingAttacking;
+    bool kingHurt = false;
+
+    bool playerHurt = false;
+
+
+    int timerTimeout = 100;;
+
+    std::random_device rd; // random number do hardware
+
+
     while (!glfwWindowShouldClose(window))
     {
+
+        if(kingHurt){
+            kingLife--;
+            kingHurt = false;
+
+            if(kingLife <= 0 )
+                gameEnd = true;
+
+        }
+        if(playerHurt){
+            playerLife--;
+            playerHurt = false;
+
+            if(playerLife <= 0 )
+                gameEnd = true;
+        }
+        else
+            cooldownHit--;
+
         if (timeNow !=(float)glfwGetTime()){
             update = true;
             timeNow = (float)glfwGetTime();
@@ -455,7 +511,7 @@ int main(int argc, char* argv[])
         // estão no sentido negativo! Veja slides 198-200 do documento
         // "Aula_09_Projecoes.pdf".
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
+        float farplane  = -14.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -494,13 +550,14 @@ int main(int argc, char* argv[])
 #define KINGVACA 4
 
         float rotateTemp;
-        // Desenhamos o modelo da esfera
-        rotateTemp = g_AngleY + (float)glfwGetTime() * 0.1f;
-        model = Matrix_Translate(-1.0f,0.0f,0.0f)
+
+        // Desenhamos o modelo da skybox
+        rotateTemp = g_AngleY + (float)glfwGetTime();
+        model = Matrix_Translate(0.0f,0.0f,0.0f)
                 //* Matrix_Rotate_Z(0.6f)
                 //* Matrix_Rotate_X(0.2f)
                 //* Matrix_Rotate_Y(rotateTemp)
-                * Matrix_Scale(0.3f,0.3f,0.6f);
+                * Matrix_Scale(-6.0f,-6.0f,-6.0f);
         glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
         glUniform1i(object_id_uniform, SPHERE);
         DrawVirtualObject("sphere");
@@ -509,60 +566,210 @@ int main(int argc, char* argv[])
         g_VirtualScene["sphere"].currentRotation = glm::vec3(0.2f,rotateTemp,0.6f);
         g_VirtualScene["sphere"].currentScale = glm::vec3(0.3f,0.3f,0.6f);
 
-        // Desenhamos o modelo do coelho
-        rotateTemp = g_AngleX + (float)glfwGetTime() * 0.1f;
-        model = Matrix_Translate(1.0f,0.0f,0.0f)
-                //* Matrix_Rotate_X(rotateTemp)
-                * Matrix_Scale(0.3f,0.3f,0.3f);
+        // Desenhamos o modelo do ataque do jogador
+        rotateTemp = (float)glfwGetTime() * 0.5f;
 
-        g_VirtualScene["bunny"].currentTranslation = glm::vec3(1.0f,0.0f,0.0f);
-        g_VirtualScene["bunny"].currentRotation = glm::vec3(rotateTemp,0.0f,0.0f);
-        g_VirtualScene["bunny"].currentScale = glm::vec3(0.3f,0.3f,0.3f);
+        if(cooldownBunny <= 0 && !bunnyPickedUp){
+            model = Matrix_Translate(0.0f,-0.6f,0.0f)
+                    * Matrix_Rotate_Y(rotateTemp)
+                    * Matrix_Scale(0.2f,0.2f,0.2f);
+
+            g_VirtualScene["bunny"].currentTranslation = glm::vec3(0.0f,-0.6f,0.0f);
+            g_VirtualScene["bunny"].currentScale = glm::vec3(0.2f,0.2f,0.2f);
+        }
+        else if(!bunnyPickedUp || gameEnd){
+            cooldownBunny--;
+            model = Matrix_Translate(10.0f,-0.6f,0.0f)
+                    * Matrix_Scale(0.2f,0.2f,0.2f);
+        }
+        else{
+
+            if(playerAttack && !gameEnd){
+                if(bunny_position_c.x < 2.0f)
+                    bunny_position_c.x += 0.02f;
+                else{
+                    playerAttack = false;
+                    kingHurt = true;
+                    cooldownBunny = 500;
+                    bunnyPickedUp = false;
+                }
+
+                model = Matrix_Translate(bunny_position_c.x,bunny_position_c.y,bunny_position_c.z)
+                    * Matrix_Rotate_Y(rotateTemp*2)
+                    * Matrix_Scale(0.2f,0.2f,0.2f);
+
+            }
+            else{
+                bunny_position_c = player_position_c;
+                bunny_position_c.x += 0.3f;
+                bunny_position_c.y += 0.1f;
+            }
+                model = Matrix_Translate(bunny_position_c.x,bunny_position_c.y,bunny_position_c.z)
+                    * Matrix_Rotate_Y(rotateTemp)
+                    * Matrix_Scale(0.1f,0.1f,0.1f);
+
+
+        }
+
 
         glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
         glUniform1i(object_id_uniform, BUNNY);
         DrawVirtualObject("bunny");
 
-        // Desenhamos o plano do chão
-        model = Matrix_Translate(0.0f,-1.1f,0.0f);
+        ;
+
+        // Desenhamos o plano do chão e os apoios
+        model = Matrix_Translate(0.0f,-1.1f,0.0f)
+                *Matrix_Scale(2.0f,0.1f,1.0f);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, PLANE);
+        DrawVirtualObject("plane");
+        //posto 1
+        model = Matrix_Translate(1.50f,-1.8f,0.95f)
+                *Matrix_Scale(0.1f,1.0f,0.2f)
+                 *Matrix_Rotate_X(-10.5f);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, PLANE);
+        DrawVirtualObject("plane");
+        //posto 2
+        model = Matrix_Translate(-1.50f,-1.8f,0.95f)
+                *Matrix_Scale(0.1f,1.0f,0.2f)
+                 *Matrix_Rotate_X(-10.5f);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, PLANE);
+        DrawVirtualObject("plane");
+        //posto 3
+        model = Matrix_Translate(1.50f,-1.8f,-0.95f)
+                *Matrix_Scale(0.1f,1.0f,0.2f)
+                 *Matrix_Rotate_X(-10.5f);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, PLANE);
+        DrawVirtualObject("plane");
+        //posto 4
+        model = Matrix_Translate(-1.50f,-1.8f,-0.95f)
+                *Matrix_Scale(0.1f,1.0f,0.2f)
+                 *Matrix_Rotate_X(-10.5f);
         glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");
 
-        g_VirtualScene["plane"].currentTranslation = glm::vec3(0.0f,-1.1f,0.0f);
+        //plano vertical
+        model = Matrix_Translate(-1.9f,-0.2f,0.0f)
+                *Matrix_Scale(0.1f,1.1f,0.95f)
+                *Matrix_Rotate_Z(4.2f)
+                 ;
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, PLANE);
+        DrawVirtualObject("plane");
+
+        //plano plataforma
+        model = Matrix_Translate(-1.9f,-0.2f,0.0f)
+                *Matrix_Scale(0.5f,0.1f,0.95f);
+        glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniform1i(object_id_uniform, PLANE);
+        DrawVirtualObject("plane");
+
+        g_VirtualScene["plane"].currentTranslation = glm::vec3(-1.9f,-0.2f,0.0f);
         g_VirtualScene["plane"].currentRotation = glm::vec3(0.0f,0.0f,0.0f);
-        g_VirtualScene["plane"].currentScale = glm::vec3(1.0f,1.0f,1.0f);
+        g_VirtualScene["plane"].currentScale = glm::vec3(0.5f,0.1f,0.95f);
 
         // Desenhamos o KingVaca
-        model = Matrix_Translate(6.0f,-2.0f,0.0f)
+
+        float currentRotationKing = sin((float)glfwGetTime() * 6.1f)*0.20f;
+        float currentRotationKingAux = 0;
+        if(!kingAttacking && (currentRotationKing < -0.01f || currentRotationKing > 0.01f) && kingLife > 0) {
+
+            std::mt19937 eng(rd()); // seed generator
+            std::uniform_int_distribution<> distr(0, 1000); //o range
+
+            int rando = distr(eng);
+
+            //printf("\nrando %i",rando);
+            if(rando < 20 && timerTimeout < 0){
+                kingAttacking = true;
+                timerTimeout = 100;
+            }
+            else if (rando < 50 && timerTimeout < 0){
+                kingAttack = false;
+                kingAttacking = true;
+            }
+            else if (rando < 100)
+                timerTimeout--;
+        }
+        else if(update&&kingAttacking){
+            if(kingAttack){
+                if (kingvaca_position_c.x >= kingvaca_position_c_back.x)
+                {
+                 kingAttack = false;
+                 kingAttacking = false;
+                 g_VirtualScene["kingvaca"].currentVelocity.x = 0.0f;
+                 timerTimeout = 100;
+                }
+                else{
+                    g_VirtualScene["kingvaca"].currentVelocity.x += 0.0001f;
+                }
+            }
+            else{
+                timerTimeout--;
+                if(timerTimeout <= 0){
+                    g_VirtualScene["kingvaca"].currentVelocity.x = -0.02f;
+                    kingAttack = true;
+                }
+            }
+        }
+
+        if(update)
+            kingvaca_position_c.x += g_VirtualScene["kingvaca"].currentVelocity.x;
+        if(!kingAttacking)
+            currentRotationKingAux = currentRotationKing;
+        if(kingLife >0)
+        model = Matrix_Translate(kingvaca_position_c.x,-2.0f,0.0f)
                 * Matrix_Scale(5.0f,5.0f,5.0f)
-                * Matrix_Rotate_Y(3.2f);
+                * Matrix_Rotate_Y(3.2f)
+                * Matrix_Rotate_X(currentRotationKingAux );
+        else
+        model = Matrix_Translate(kingvaca_position_c_back.x-2.0f,-2.0f,0.0f)
+                * Matrix_Scale(5.0f,5.0f,5.0f)
+                * Matrix_Rotate_Y(3.2f-currentRotationKing*0.2f)
+                * Matrix_Rotate_Z(currentRotationKing)
+                * Matrix_Rotate_X(3.2f -currentRotationKing*0.8f);
+
         glUniformMatrix4fv(model_uniform, 1, GL_FALSE, glm::value_ptr(model));
         glUniform1i(object_id_uniform, KINGVACA);
         DrawVirtualObject("kingvaca");
 
-        g_VirtualScene["kingvaca"].currentTranslation = glm::vec3(6.0f,-1.4f,0.0f);
+        g_VirtualScene["kingvaca"].currentTranslation = glm::vec3(kingvaca_position_c.x,-1.4f,0.0f);
         g_VirtualScene["kingvaca"].currentScale = glm::vec3(5.0f,5.0f,5.0f);
-
 
         // [GUI]Desenhamos a vaquinha
         player_position_c_back = player_position_c;
         player_position_c +=g_VirtualScene["cow"].currentVelocity;
 
-        if(update && player_position_c.y >= -0.9f){
+        if(player_position_c.x < -1.5f)
+            player_position_c = player_position_c_back;
+
+        if(update && player_position_c.y >= -0.9f && playerLife > 0){
             g_VirtualScene["cow"].currentVelocity += gravity;
         }
-        if(player_position_c.y <= -0.9f){
+        if(player_position_c.y <= -0.9f && playerLife > 0){
             jumping = false;
             g_VirtualScene["cow"].currentVelocity.y = 0.0f;
         }
+
+        if(playerLife <= 0)
+            player_position_c.y += 0.008f;
 
         model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
                 * Matrix_Scale(0.3f,0.3f,0.6f)
                 * Matrix_Rotate_Y(g_VirtualScene["cow"].currentRotation.y);
 
+        if(gameEnd && playerLife > 0)
+             model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
+                * Matrix_Scale(0.3f,0.3f,0.6f)
+                * Matrix_Rotate_Y(currentRotationKing);
+
+
         g_VirtualScene["cow"].currentTranslation = glm::vec3(player_position_c.x,player_position_c.y,player_position_c.z);
-        //g_VirtualScene["cow"].currentRotation = glm::vec3(0.0f,0.0f,0.0f);
         g_VirtualScene["cow"].currentScale = glm::vec3(0.3f,0.3f,0.6f);
 
 
@@ -578,8 +785,16 @@ int main(int argc, char* argv[])
             jumping = false;
 
             printf("Collisions:");
-            for (int i = 0; i<collisions.size(); i++)
+            for (int i = 0; i<collisions.size(); i++){
+
+                if(collisions[i]=="bunny")
+                    bunnyPickedUp = true;
+                if(collisions[i]=="kingvaca" && cooldownHit <= 0){
+                    cooldownHit = 500;
+                    playerHurt= true;
+                }
                 printf("%s",collisions[i].c_str());
+            }
             printf("\n");
         }
 
@@ -594,6 +809,8 @@ int main(int argc, char* argv[])
         //glm::vec4 p_model(0.5f, 0.5f, 0.5f, 1.0f);
         //TextRendering_ShowModelViewProjection(window, projection, view, model, p_model);
 
+        TextRendering_ShowPlayerAndKingLife(window);
+
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
         TextRendering_ShowEulerAngles(window);
@@ -604,6 +821,9 @@ int main(int argc, char* argv[])
         // Imprimimos na tela informação sobre o número de quadros renderizados
         // por segundo (frames per second).
         TextRendering_ShowFramesPerSecond(window);
+
+        TextRendering_ShowKnockOut(window);
+        TextRendering_ShowYouDied(window);
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -694,6 +914,11 @@ std::vector<std::string>  checkCollisions(const char* object_name)
 
     for (int i = 1; i<objectsInScene.size(); i++)
     {
+
+        if(objectsInScene[i] == "sphere")
+            continue;
+        if(objectsInScene[i] == "bunny" && bunnyPickedUp)
+            continue;
 
         glm::vec3 boundingMinCompare =
             (g_VirtualScene[objectsInScene[i]].bbox_min*g_VirtualScene[objectsInScene[i]].currentScale)+g_VirtualScene[objectsInScene[i]].currentTranslation;
@@ -798,6 +1023,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), 1);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), 3);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), 4);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage5"), 5);
     glUseProgram(0);
 }
 
@@ -1396,7 +1623,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         SPressed = false;
     }
 
-    if (key == GLFW_KEY_A && action == GLFW_PRESS)
+    if (key == GLFW_KEY_A && action == GLFW_PRESS && playerLife > 0 && !gameEnd)
     {
         g_VirtualScene["cow"].currentVelocity.x = -0.01f;
         g_VirtualScene["cow"].currentRotation.y = 3.2f;
@@ -1408,7 +1635,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         APressed = false;
     }
 
-    if (key == GLFW_KEY_D && action == GLFW_PRESS)
+    if (key == GLFW_KEY_D && action == GLFW_PRESS && playerLife > 0 && !gameEnd)
     {
         g_VirtualScene["cow"].currentVelocity.x = 0.01f;
         g_VirtualScene["cow"].currentRotation.y = 0.0f;
@@ -1420,9 +1647,9 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         DPressed = false;
     }
 
-    if (key == GLFW_KEY_J && action == GLFW_PRESS)
+    if (key == GLFW_KEY_J && action == GLFW_PRESS && !playerAttack)
     {
-
+        playerAttack = true;
 
     }
 
@@ -1514,13 +1741,46 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
 {
     if ( !g_ShowInfoText )
         return;
-
     float pad = TextRendering_LineHeight(window);
 
     char buffer[80];
     snprintf(buffer, 80, "Euler Angles rotation matrix = Z(%.2f)*Y(%.2f)*X(%.2f)\n", g_AngleZ, g_AngleY, g_AngleX);
 
     TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+2*pad/10, 1.0f);
+}
+
+void TextRendering_ShowPlayerAndKingLife(GLFWwindow* window)
+{
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "COWZIE = %d KING = %d \n", playerLife, kingLife);
+
+    TextRendering_PrintString(window, buffer, -1.0f, +0.9f, 1.5f);
+}
+
+void TextRendering_ShowKnockOut(GLFWwindow* window)
+{
+    if ( kingLife > 0 )
+        return;
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "KNOCKOUT!!");
+
+    TextRendering_PrintString(window, buffer, -1.0f+pad, -1.0f+17*pad, 10.0f);
+}
+
+void TextRendering_ShowYouDied(GLFWwindow* window)
+{
+    if ( playerLife > 0 )
+        return;
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "YOU DIED!");
+
+    TextRendering_PrintString(window, buffer, -1.0f+pad, -1.0f+17*pad, 10.0f);
 }
 
 // Escrevemos na tela qual matriz de projeção está sendo utilizada.

@@ -35,6 +35,7 @@ uniform sampler2D TextureImage0;
 uniform sampler2D TextureImage1;
 uniform sampler2D TextureImage2;
 uniform sampler2D TextureImage3;
+uniform sampler2D TextureImage4;
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec3 color;
@@ -62,10 +63,21 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(1.0,1.0,0.0,0.0));
+    vec4 l = normalize(vec4(0.0,0.2,0.0,0.0));
 
     // Vetor que define o sentido da câmera em relação ao ponto atual.
     vec4 v = normalize(camera_position - p);
+
+    vec4 spotlightcenter = vec4(0.0,1.5,0.0,0.0);
+
+    // Vetor que define o sentido da reflexão especular ideal.
+    vec4 r = normalize(l+2*n*(max(0,dot(n,l))));//REENCHA AQUI o vetor de reflexão especular ideal
+
+    // Parâmetros que definem as propriedades espectrais da superfície
+    vec3 Kd = vec3(0.0f,0.0f,0.0f); // Refletância difusa
+    vec3 Ks = vec3(0.0f,0.0f,0.0f); // Refletância especular
+    vec3 Ka = vec3(0.0f,0.0f,0.0f); // Refletância ambiente
+    float q; // Expoente especular para o modelo de iluminação de Phong
 
     // Coordenadas de textura U e V
     float U = 0.0;
@@ -87,17 +99,19 @@ void main()
          //   função 'asin( )'   : seno inverso.
         //   constante M_PI
         //   variável position_model
+        Kd = vec3(2.8,2.4,2.08);
+        Ks = vec3(0.0,0.0,0.0);
+        Ka = vec3(0.5,0.2,0.04);
+        q = 10.0;
 
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
         float radius = length(position_model-bbox_center);
 
         vec4 dashP = bbox_center + radius*normalize(position_model-bbox_center);
 
-
         float angleRo = sqrt(pow(dashP.x,2)+pow(dashP.y,2)+pow(dashP.z,2 ) );
         float angleTheta = atan(dashP.x,dashP.z);
         float anglePhi = asin(dashP.y/angleRo);
-        //
 
         U = (angleTheta+M_PI)/(2*M_PI);
         V = (anglePhi + M_PI_2)/M_PI;
@@ -112,6 +126,11 @@ void main()
         // as coordenadas de textura U e V dentro do intervalo [0,1]. Para
         // tanto, veja por exemplo o mapeamento da variável 'h' no slide 149 do
         // documento "Aula_20_e_21_Mapeamento_de_Texturas.pdf".
+
+        Kd = vec3(0.2,0.2,0.2);
+        Ks = vec3(0.3,0.3,0.3);
+        Ka = vec3(0.0,0.0,0.0);
+        q = 32.0;
 
         float minx = bbox_min.x;
         float maxx = bbox_max.x;
@@ -128,26 +147,61 @@ void main()
 
     else if ( object_id == PLANE )
     {
+        Kd = vec3(0.2,0.2,0.2);
+        Ks = vec3(0.3,0.3,0.3);
+        Ka = vec3(0.0,0.0,0.0);
         // Coordenadas de textura do plano, obtidas do arquivo OBJ.
         U = texcoords.x;
         V = texcoords.y;
     }
 
     // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
+// Espectro da fonte de iluminação
+    vec3 I = vec3(1.0,1.0,1.0); // PREENCH AQUI o espectro da fonte de luz
+
+    vec4 vvec = vec4(0.0,-1.0,0.0,0.0); // PREENCH AQUI o espectro da fonte de luz
+    float alpha = 3.1415/6; // PREENCH AQUI o espectro da fonte de luz
+
+    // Espectro da luz ambiente
+    vec3 Ia = vec3(0.2,0.2,0.2); // PREENCHA AQUI o espectro da luz ambiente
+
+    // Termo difuso utilizando a lei dos cossenos de Lambert
+    vec3 lambert_diffuse_term = Kd*I*max(0,dot(n,l)); // PREENCHA AQUI o termo difuso de Lambert
+
+    // Termo ambiente
+    vec3 ambient_term = Ka*Ia; // PREENCHA AQUI o termo ambiente
+
+    // Termo especular utilizando o modelo de iluminação de Phong
+    vec3 phong_specular_term  = Ks*I*pow((max(0,(dot(r,v)))),q); // PREENCH AQUI o termo especular de Phong
+
+    // Cor final do fragmento calculada com uma combinação dos termos difuso,
+    // especular, e ambiente. Veja slide 134 do documento "Aula_17_e_18_Modelos_de_Iluminacao.pdf".
+
     if ( object_id == SPHERE )
     {
-        Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
-        Kd1 = texture(TextureImage1, vec2(U,V)).rgb;
+        Kd0 = texture(TextureImage3, vec2(U,V)).rgb;
     }
-    if ( object_id == COW || object_id == KINGVACA )
+    if ( object_id == KINGVACA )
     {
         Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
+    }
+    if ( object_id == COW )
+    {
+        Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
+    }
+
+    if ( object_id == PLANE )
+    {
+        Kd0 = texture(TextureImage4, vec2(U,V)).rgb;
     }
 
     // Equação de Iluminação
     float lambert = max(0,dot(n,l));
 
-    color = Kd0 * (lambert + 0.01) + Kd1 * (1 - pow( (lambert),0.1));
+   if(dot(normalize(p-spotlightcenter),normalize(vvec))>=cos(alpha))
+        color = Kd0 * (lambert + 0.2)+lambert_diffuse_term + ambient_term + phong_specular_term;
+    else
+        color = Kd0 * (lambert + 0.2)+ambient_term;
 
     // Cor final com correção gamma, considerando monitor sRGB.
     // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
