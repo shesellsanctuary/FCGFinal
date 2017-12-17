@@ -836,7 +836,7 @@ int main(int argc, char* argv[])
         }
 
         model = Matrix_Translate(player_position_c.x,player_position_c.y,player_position_c.z)
-                * Matrix_Scale(0.3f,0.3f,0.6f)
+                * Matrix_Scale(0.3f,0.3f,0.3f)
                 * Matrix_Rotate_Y(g_VirtualScene["cow"].currentRotation.y);
 
         if(gameEnd && playerLife > 0)

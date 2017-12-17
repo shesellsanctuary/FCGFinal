@@ -117,7 +117,15 @@ void main()
         V = (anglePhi + M_PI_2)/M_PI;
 
     }
-    else if ( object_id == BUNNY || object_id == COW || object_id == KINGVACA  )
+    else if ( object_id == BUNNY ){
+        Kd = vec3(0.08,0.4,0.8);
+        Ks = vec3(0.8,0.8,0.8);
+        Ka = vec3(0.04,0.02,0.4);
+        q = 32.0;
+
+    }
+
+    else if ( object_id == COW || object_id == KINGVACA  )
     {
         // PREENCHA AQUI as coordenadas de textura do coelho, computadas com
         // projeção planar XY em COORDENADAS DO MODELO. Utilize como referência
